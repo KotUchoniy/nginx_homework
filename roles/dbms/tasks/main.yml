@@ -1,0 +1,3 @@
+---
+- include: centos7-install.yml
+- include: config.yml

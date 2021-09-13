@@ -1,0 +1,19 @@
+---
+- hosts: dbms
+  tags: database
+  become: true
+  roles:
+    - role: dbms
+
+- hosts: backend
+  tags: php-fpm
+  become: true
+  roles:
+    - role: backend
+
+- hosts: nginx
+  tags: nginx
+  become: true
+  roles:
+    - role: nginx
+

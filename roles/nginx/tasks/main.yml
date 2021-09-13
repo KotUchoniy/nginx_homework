@@ -1,0 +1,84 @@
+---
+- name: check os version
+  fail: msg='OS is NOT CentOS 7.x'
+  when: ansible_distribution != 'CentOS' or ansible_distribution_major_version != '7'
+
+- name: Installing EPEL
+  yum:
+    state: present
+    name:
+      - epel-release
+
+- name: install nginx
+  yum:
+    state: present
+    name:
+      - nginx
+      - keepalived
+
+- name: Set SELinux in permissive mode until the machine is rebooted
+  command: setenforce 0
+  ignore_errors: true
+  changed_when: false
+
+- name: Create directory /var/www
+  file:
+    path: /var/www
+    state: directory
+    owner: nginx
+    group: nginx
+    mode: 0775
+
+- name: Copy php files
+  copy:
+    src: "{{ item }}"
+    dest: /var/www/
+    owner: nginx
+    group: nginx
+    mode: 0600
+  with_items:
+    - index.php
+    - Hello.php
+
+- name: Copy nginx config files
+  copy:
+    src: "{{ item }}"
+    dest: /etc/nginx/conf.d/
+    owner: nginx
+    group: nginx
+    mode: 0600
+  with_items:
+    - otus.conf
+    - backend.conf
+
+- name: Configuring sysctl
+  shell: |
+    sysctl net.ipv4.ip_nonlocal_bind=1
+
+- name: Copy keepalive config
+  copy:
+    src: keepalived.conf
+    dest: /etc/keepalived/
+    owner: root
+    group: root
+    mode: 0644
+
+- name: Configuring keppalive Master
+  lineinfile: dest=/etc/keepalived/keepalived.conf
+              regexp='state BACKUP '
+              line='state MASTER '
+              state=present
+
+- name: Start nginx service
+  service:
+    name: "nginx"
+    state: "started"
+    enabled: yes
+  become: true
+
+- name: Start keepalived service
+  service:
+    name: "keepalived"
+    state: "started"
+    enabled: yes
+  become: true

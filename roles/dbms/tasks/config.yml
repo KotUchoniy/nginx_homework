@@ -1,0 +1,88 @@
+- name: Set SELinux in permissive mode until the machine is rebooted
+  command: setenforce 0
+  ignore_errors: true
+  changed_when: false
+
+- name: Check init DB
+  stat:
+    path: /var/lib/pgsql/data/postgresql.conf
+  register: stat_result
+
+- name: Init DB
+  become: true
+  become_user: postgres
+  shell: |
+    initdb -D /var/lib/pgsql/data
+  when: not stat_result.stat.exists
+
+- name: Configuring postgresql.conf
+  lineinfile: 
+    dest: /var/lib/pgsql/data/postgresql.conf
+    regexp: ''
+    insertafter: 'EOF'
+    line: "include_if_exists 'custom.conf'"
+
+- name: Configuring pg_hba.conf
+  lineinfile:
+    dest: /var/lib/pgsql/data/pg_hba.conf
+    insertafter: '# IPv4'
+    line: host all all 192.168.7.0/24 md5
+    state: present
+
+- name: copy config files
+  copy:
+    src: "custom.conf"
+    dest: /var/lib/pgsql/data/custom.conf
+
+
+- name: Start PostgreSQL service
+  service:
+    name: "postgresql"
+    state: "restarted"
+    enabled: yes
+  become: true
+
+- name: Create test database PostgreSQL 4 Linux
+  when:
+    - ansible_system == 'Linux'
+  become: yes
+  become_user: postgres
+  vars:
+    otus_database: otus_db
+    otus_user: otus
+    otus_password: student
+    password_for_default_postgres_user: qazwsxedc
+  block:
+    - postgresql_user:
+        name: postgres
+        password: '{{ password_for_default_postgres_user }}'
+    - postgresql_db:
+        db: '{{ otus_database }}'
+        encoding: UTF-8
+        template: 'template0'
+        state: present
+    - postgresql_user:
+        db: '{{ otus_database }}'
+        name: '{{ otus_user }}'
+        password: '{{ otus_password }}'
+        state: present
+        expires: infinity
+        priv: CREATE,CONNECT,TEMPORARY
+    - postgresql_db:
+        db: '{{ otus_database }}'
+        owner: '{{ otus_user }}'
+        encoding: UTF-8
+        state: present
+    - postgresql_privs:
+        database: '{{ otus_database }}'
+        state: present
+        host: 127.0.0.1
+        privs: '{{ item }}'
+        type: database
+        roles: '{{ otus_user }}'
+        login: '{{ otus_user }}'
+        password: '{{ otus_password }}'
+      with_items:
+        - CREATE
+        - CONNECT
+        - TEMPORARY

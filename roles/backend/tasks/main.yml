@@ -1,0 +1,60 @@
+---
+- name: check os version
+  fail: msg='OS is NOT CentOS 7.x'
+  when: ansible_distribution != 'CentOS' or ansible_distribution_major_version != '7'
+
+- name: Set SELinux in permissive mode until the machine is rebooted
+  command: setenforce 0
+  ignore_errors: true
+  changed_when: false
+
+- name: install php-fpm
+  yum:
+    state: present
+    name:
+      - php-fpm
+      - php-gd
+      - php-pgsql
+
+- name: stop php-fpm
+  service:
+    name: "php-fpm"
+    state: "stopped"
+  become: true
+
+- name: Create directory /var/www
+  file:
+    path: /var/www
+    state: directory
+    owner: apache
+    group: apache
+    mode: 0775
+
+- name: Copy php files
+  copy:
+    src: "{{ item }}"
+    dest: /var/www/
+    owner: apache
+    mode: 0600
+  with_items:
+    - index.php
+    - Hello.php
+
+- name: Php-fpm clients
+  lineinfile: dest=/etc/php-fpm.d/www.conf
+              regexp='listen.allowed_clients = '
+              line='#listen.allowed_clients = '
+              state=present
+
+- name: Php-fpm listen
+  lineinfile: dest=/etc/php-fpm.d/www.conf
+              regexp='listen = .*'
+              line='listen = 9000'
+              state=present
+
+- name: start php-fpm
+  service:
+    name: "php-fpm"
+    state: "started"
+    enabled: yes
+  become: true
