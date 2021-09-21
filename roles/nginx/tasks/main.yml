@@ -15,6 +15,7 @@
     name:
       - nginx
       - keepalived
+      - psmisc
 
 - name: Set SELinux in permissive mode until the machine is rebooted
   command: setenforce 0
@@ -62,12 +63,6 @@
     owner: root
     group: root
     mode: 0644
-
-- name: Configuring keppalive Master
-  lineinfile: dest=/etc/keepalived/keepalived.conf
-              regexp='state BACKUP '
-              line='state MASTER '
-              state=present
 
 - name: Start nginx service
   service:

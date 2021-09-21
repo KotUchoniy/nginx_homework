@@ -17,3 +17,17 @@
   roles:
     - role: nginx
 
+- hosts: nginx1
+  tags: nginx1
+  become: true
+  tasks:
+    - name: Configuring keppalive Master
+      lineinfile: dest=/etc/keepalived/keepalived.conf
+                  regexp='state BACKUP'
+                  line='    state MASTER'
+                  state=present
+    - name: Restart keepalived
+      service: 
+        name: keepalived
+        state: restarted
+
